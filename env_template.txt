@@ -1,0 +1,4 @@
+# Snowflake Cortex Agent API Configuration
+# Copy this file to .env and fill in your actual token
+
+SNOWFLAKE_TOKEN=your_actual_token_here

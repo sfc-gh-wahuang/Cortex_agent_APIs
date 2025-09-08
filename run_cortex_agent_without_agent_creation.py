@@ -188,7 +188,11 @@ def run_cortex_agent(token, user_message, account_url,
             },
             "Analyst1": {
                 # "semantic_view": f"{semantic_view}"
-                "semantic_model_file": f"{semantic_model_file}"
+                "semantic_model_file": f"{semantic_model_file}",
+                "execution_environment": {
+                    "type": "warehouse",
+                    "warehouse": "HOL2_WH"
+                }
             }
         },
         "messages": [
@@ -215,7 +219,7 @@ if __name__ == "__main__":
     # Run agent with custom settings and different query
     response = run_cortex_agent(
         token=token,
-        user_message="What was the total revenue",
+        user_message="What was the monthly revenue by product and region in the last quarter of 2024?",
         account_url="https://eq06761.ap-southeast-2.snowflakecomputing.com",
         semantic_view=None,
         semantic_model_file="@HOL2_DB.HOL2_SCHEMA.SEMANTIC_MODEL/revenue_timeseries.yaml",

@@ -1,3 +1,6 @@
+# Snowflake Cortex Agent Run API - With Agent Object
+# This script runs an existing Cortex agent object using the REST API
+
 import requests
 import json
 import os
@@ -37,6 +40,9 @@ def parse_sse_events_readable(response):
                 
                 # Check for stream completion
                 if current_event == 'done' and data == '[DONE]':
+                    # Print any remaining accumulated text before completion
+                    if response_text:
+                        print(f"\n\nFinal Response: {response_text}")
                     print("\nResponse completed!")
                     break
                 
@@ -46,7 +52,15 @@ def parse_sse_events_readable(response):
                         json_data = json.loads(data)
                         
                         # Handle different event types
-                        if current_event == 'response.status':
+                        if current_event == 'error':
+                            error_code = json_data.get('code', 'Unknown')
+                            error_message = json_data.get('message', 'Unknown error')
+                            request_id = json_data.get('request_id', 'Unknown')
+                            print(f"❌ ERROR: {error_message}")
+                            print(f"   Error Code: {error_code}")
+                            print(f"   Request ID: {request_id}")
+                            
+                        elif current_event == 'response.status':
                             status = json_data.get('status', '')
                             message = json_data.get('message', '')
                             print(f"Status: {message} ({status})")
@@ -63,8 +77,9 @@ def parse_sse_events_readable(response):
                         elif current_event == 'response.text':
                             # Final text content
                             final_text = json_data.get('text', '')
-                            if final_text and not response_text:
+                            if final_text:
                                 print(f"\nResponse: {final_text}")
+                                response_text = final_text  # Update accumulated text
                                 
                         elif current_event == 'response.thinking':
                             # Final thinking content
@@ -74,16 +89,24 @@ def parse_sse_events_readable(response):
                                 
                         elif current_event == 'response.tool_use':
                             tool_name = json_data.get('name', 'Unknown')
-                            print(f"\nUsing tool: {tool_name}")
+                            tool_type = json_data.get('type', 'Unknown')
+                            print(f"\n🔧 Using tool: {tool_name} ({tool_type})")
                             
                         elif current_event == 'response.tool_result':
-                            print(f"Tool completed")
+                            tool_name = json_data.get('name', 'Unknown')
+                            status = json_data.get('status', 'Unknown')
+                            print(f"✅ Tool {tool_name} completed with status: {status}")
                             
                         elif current_event == 'response.chart':
-                            print(f"\nChart generated")
+                            print(f"\n📊 Chart generated")
                             
                         elif current_event == 'response.table':
-                            print(f"\nTable generated")
+                            print(f"\n📋 Table generated")
+                            
+                        elif current_event == 'response.status':
+                            status = json_data.get('status', '')
+                            message = json_data.get('message', '')
+                            print(f"📊 Status: {message} ({status})")
                             
                     except json.JSONDecodeError:
                         # Not JSON, might be plain text
@@ -92,7 +115,7 @@ def parse_sse_events_readable(response):
                             print(data, end='', flush=True)
 
 def run_agent_object(token, agent_name, user_message, database, schema, 
-                    account_url, thread_id=None, parent_message_id=None):
+                    account_url, thread_id=None, parent_message_id=None, tool_choice=None):
     """
     Run an existing Cortex agent object
     
@@ -113,11 +136,10 @@ def run_agent_object(token, agent_name, user_message, database, schema,
     # Request headers
     headers = {
         "Authorization": f"Bearer {token}",
-        "Accept": "application/json",
         "Content-Type": "application/json"
     }
     
-    # Build the request body
+    # Build the request body according to documentation
     payload = {
         "messages": [
             {
@@ -141,12 +163,16 @@ def run_agent_object(token, agent_name, user_message, database, schema,
             # If thread_id is provided, parent_message_id is required
             payload["parent_message_id"] = 0  # Default to 0 for initial message
     
+    # Add tool_choice if provided
+    if tool_choice is not None:
+        payload["tool_choice"] = tool_choice
+    
     # Send the request
     response = requests.post(api_endpoint, headers=headers, json=payload, stream=True)
     return response
 
 def run_agent_object_with_conversation_history(token, agent_name, conversation_history, 
-                                              database, schema, account_url):
+                                              database, schema, account_url, tool_choice=None):
     """
     Run an existing Cortex agent object with full conversation history
     
@@ -165,7 +191,6 @@ def run_agent_object_with_conversation_history(token, agent_name, conversation_h
     # Request headers
     headers = {
         "Authorization": f"Bearer {token}",
-        "Accept": "application/json",
         "Content-Type": "application/json"
     }
     
@@ -173,6 +198,10 @@ def run_agent_object_with_conversation_history(token, agent_name, conversation_h
     payload = {
         "messages": conversation_history
     }
+    
+    # Add tool_choice if provided
+    if tool_choice is not None:
+        payload["tool_choice"] = tool_choice
     
     # Send the request
     response = requests.post(api_endpoint, headers=headers, json=payload, stream=True)
@@ -183,21 +212,27 @@ if __name__ == "__main__":
     token = os.getenv("SNOWFLAKE_TOKEN")
     
     # Configuration - update these values for your environment
-    agent_name = "CUSTOM_AGENT"  # Replace with your agent name
+    agent_name = "custom_agent"  # Replace with your agent name
     database = "HOL2_DB"
     schema = "HOL2_SCHEMA"
     account_url = "https://eq06761.ap-southeast-2.snowflakecomputing.com"
     
     print("=== Running Agent Object ===")
     
-    # Example 1: Simple single message
+    # Example 1: Simple single message with tool choice
+    tool_choice = {
+        "type": "auto",
+        "name": ["Analyst1", "Search1"]  # Specify which tools to use
+    }
+    
     response = run_agent_object(
         token=token,
         agent_name=agent_name,
         user_message="What was the total revenue last quarter?",
         database=database,
         schema=schema,
-        account_url=account_url
+        account_url=account_url,
+        tool_choice=tool_choice
     )
     
     print(f"Status Code: {response.status_code}")

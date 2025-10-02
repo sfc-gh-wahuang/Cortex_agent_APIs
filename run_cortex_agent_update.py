@@ -6,22 +6,22 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-def create_cortex_agent(token, agent_name, semantic_view, 
+def update_cortex_agent(token, agent_name, semantic_view, 
                        search_service, 
                        warehouse):
     """
-    Create a Snowflake Cortex agent
+    Update a Snowflake Cortex agent
     
     Args:
         token: Bearer token for authentication
-        agent_name: Name of the agent
+        agent_name: Name of the agent to update
         semantic_view: Path to the semantic view for the analyst tool
         search_service: Path to the search service
         warehouse: Warehouse name
     """
     
-    # API endpoint
-    api_endpoint = "https://eq06761.ap-southeast-2.snowflakecomputing.com/api/v2/databases/HOL2_DB/schemas/HOL2_SCHEMA/agents"
+    # API endpoint - include agent name for updates
+    api_endpoint = f"https://eq06761.ap-southeast-2.snowflakecomputing.com/api/v2/databases/HOL2_DB/schemas/HOL2_SCHEMA/agents/{agent_name}"
     
     # Request headers
     headers = {
@@ -62,7 +62,7 @@ def create_cortex_agent(token, agent_name, semantic_view,
         "tools": [
             {
                 "tool_spec": {
-                    "description": "Analyst to analyze revenue",
+                    "description": "Analyst to analyze revenue test update",
                     "type": "cortex_analyst_text_to_sql",
                     "name": "Analyst1"
                 }
@@ -76,31 +76,28 @@ def create_cortex_agent(token, agent_name, semantic_view,
         ],
         "tool_resources": {
             "Search1": {
-                "search_service": search_service,
-                "name": search_service,
-                "max_results": 5
+                "search_service": search_service
             },
             "Analyst1": {
                 "semantic_view": semantic_view,
                 "execution_environment": {
                     "type": "warehouse",
-                    "warehouse": "HOL2_WH"
+                    "warehouse": 'HOL2_WH'
                 }
             }
-        },
-        "warehouse": warehouse
+        }
     }
     
     # Send the request
-    response = requests.post(api_endpoint, headers=headers, json=payload)
+    response = requests.put(api_endpoint, headers=headers, json=payload)
     return response
 
 # Example usage
 if __name__ == "__main__":
     token = os.getenv("SNOWFLAKE_TOKEN")
     
-    # Create agent with custom settings
-    response = create_cortex_agent(
+    # Update agent with custom settings
+    response = update_cortex_agent(
         token=token,
         agent_name="custom_agent",
         semantic_view="HOL2_DB.HOL2_SCHEMA.REVENUE",
@@ -108,4 +105,15 @@ if __name__ == "__main__":
         warehouse="HOL2_WH"
     )
     print(f"Status Code: {response.status_code}")
-    print(json.dumps(response.json(), indent=2))
+    print(f"Response Headers: {dict(response.headers)}")
+    print(f"Response Text: {response.text}")
+    
+    # Try to parse JSON response if it exists
+    if response.text.strip():
+        try:
+            print("JSON Response:")
+            print(json.dumps(response.json(), indent=2))
+        except json.JSONDecodeError:
+            print("Response is not valid JSON")
+    else:
+        print("Response is empty")

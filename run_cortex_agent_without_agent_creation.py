@@ -122,7 +122,7 @@ def parse_sse_events_raw(response):
 
 def run_cortex_agent(token, user_message, account_url,
                     semantic_view, 
-                    semantic_model_file,
+                    # semantic_model_file,
                     search_service,
                     warehouse="HOL2_WH"):
     """
@@ -187,8 +187,8 @@ def run_cortex_agent(token, user_message, account_url,
                 "max_results": 5
             },
             "Analyst1": {
-                # "semantic_view": f"{semantic_view}"
-                "semantic_model_file": f"{semantic_model_file}",
+                "semantic_view": f"{semantic_view}",
+                # "semantic_model_file": f"{semantic_model_file}",
                 "execution_environment": {
                     "type": "warehouse",
                     "warehouse": "HOL2_WH"
@@ -219,10 +219,10 @@ if __name__ == "__main__":
     # Run agent with custom settings and different query
     response = run_cortex_agent(
         token=token,
-        user_message="What was the monthly revenue by product and region in the last quarter of 2024?",
+        user_message="How many users have used our products?",
         account_url="https://eq06761.ap-southeast-2.snowflakecomputing.com",
-        semantic_view=None,
-        semantic_model_file="@HOL2_DB.HOL2_SCHEMA.SEMANTIC_MODEL/revenue_timeseries.yaml",
+        semantic_view="HOL2_DB.HOL2_SCHEMA.REVENUE",
+        # semantic_model_file="@HOL2_DB.HOL2_SCHEMA.SEMANTIC_MODEL/revenue_timeseries.yaml",
         search_service="HOL2_DB.HOL2_SCHEMA.PRODUCT_LINE_SEARCH_SERVICE",
         warehouse="HOL2_WH"
     )
